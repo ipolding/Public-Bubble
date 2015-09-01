@@ -5,7 +5,7 @@ import play.api.mvc._
 object Application extends Controller {
 
   def aboutUs = Action {
-    Ok(views.html.autocompleteTag())
+    Ok(views.html.aboutUs())
   }
 
   def twitter = Action {

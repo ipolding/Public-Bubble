@@ -9,14 +9,14 @@
             <div class="hide-for-small">
                 <nav class="side-nav ">
                     @if(!futureEvents.isEmpty) {
-                    <h4>Upcoming Events</h4>
+                    <h5>Upcoming Events</h5>
                     }
                     @for(event <- futureEvents) {
                     <b><a href="/event/@event.id">@event.title</a></b>
                     <br/>
                     }
                     @if(!pastEvents.isEmpty) {
-                        <h4>Past Events</h4>
+                        <h5>Past Events</h5>
                     }
                     @for(event <- pastEvents) {
                          <b><a href="/event/@event.id">@event.title</a></b>
@@ -28,25 +28,25 @@
     <section>
         <div id="mainEventContainer" class="columns large-9"><!--TODO the article container-->
             <h3><i>@{mainEvent.title}</i></h3>
-            <img src="@{mainEvent.image1Url}"> <!-- http://placehold.it/800x370&text=[img] -->
+            <!--<img src="@{mainEvent.image1Url}"/> -->
+            <img src="http://placehold.it/770x270&text=[img]"/>
 
-            <div id="whenAndWhere" class="row">
+            <div id="whenAndWhere" class="row panel">
 
             @if(eventLocation.isEmpty) {
                     <p>@{mainEvent.location}</p>
                     } else {
-                <div class="columns large-3">
-                @googlePlaceTag(eventLocation.get)
+            <div class="large-4 columns">@googlePlaceTag(eventLocation.get)</div>
+                <div class="large-8 columns">
+                    <h4><b>@{eventLocation.get.name}</b></h4>
+                    @{eventLocation.get.formattedAddress}
+                    <br/>
+                    <br/>
+                    @startTimeEndTimeTag(mainEvent.startTime, mainEvent.endTime)
                 </div>
-            <div class="panel columns large-9" id="addressText"> <!-- TODO takes size of parent - i.e. mainEventContainer-->
-                <h4><b>@{eventLocation.get.name}</b></h4>
-                @{eventLocation.get.formattedAddress}
-                <br/>
-                <br/>
-            <div/>
             </div>
-        @startTimeEndTimeTag(mainEvent.startTime, mainEvent.endTime)
         }
+
         <p>@Html(mainEvent.description)</p>
         </div>
     </section>

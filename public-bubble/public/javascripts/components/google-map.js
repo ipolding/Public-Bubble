@@ -23,7 +23,7 @@ var GoogleMap = React.createClass({
         console.log("component has mounted")
         var map = new google.maps.Map(React.findDOMNode(this.refs.map_canvas), 
                             {
-                             minZoom: 3,
+                             minZoom: 7,
                              zoom: 13,
                              center: markerPosition,
                              mapTypeControl : false
