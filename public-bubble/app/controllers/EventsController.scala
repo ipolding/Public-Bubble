@@ -30,34 +30,54 @@ object EventsController extends Controller {
   lazy val CLOUD_KEY : String = Play.current.configuration.getString("cloudinary.key").get
   lazy val CLOUD_SECRET : String = Play.current.configuration.getString("cloudinary.secret").get
 
-  def events = Action.async {
-    implicit request => {
-      val allEvents : Future[Seq[Event]]= eventDao.allEvents
-      val partitionedEvents : Future[(Seq[Event], Seq[Event])] = allEvents.map{_.reverse.partition(_.endTime.before(new Date))}
-
-      val result : Future[Result] = for {
-        (pastEvents, futureEvents) <- partitionedEvents
-        maybePlace <- placeFinder.findPlace(futureEvents.head.location)
-      } yield {
-         Ok(views.html.events(futureEvents.head, maybePlace, pastEvents, futureEvents.tail))
+  def maybeMainEventPlace(futureMainEvent : Future[Option[Event]]) : Future[Option[GooglePlace]] = futureMainEvent.flatMap(
+    maybeEvent => {
+      if (maybeEvent.isEmpty) {
+        Future{None}
+      } else {
+        placeFinder.findPlace(maybeEvent.get.location)
       }
+    }
+  )
 
-    result
-    }}
+  def getResult(futureMainEvent : Future[Option[Event]], futureAndPastEvents : Future[(Seq[Event], Seq[Event])]) : Future[Result] = for {
+    (futureEvents, pastEvents) <- futureAndPastEvents
+    mainEvent <- futureMainEvent
+    maybePlace <- maybeMainEventPlace(futureMainEvent)
+  } yield {
+      (futureEvents.toList, pastEvents.toList) match {
+        case (Nil, Nil) => Ok(views.html.events(mainEvent, maybePlace, None, None))
+        case (Seq(), Nil) => Ok(views.html.events(mainEvent, maybePlace, Some(futureEvents), None))
+        case (Nil, Seq()) => Ok(views.html.events(mainEvent, maybePlace, None, Some(pastEvents)))
+        case (Seq(), Seq()) => Ok(views.html.events(Some(futureEvents.head), maybePlace, Some(pastEvents), Some(futureEvents.tail)))
+      }
+    }
+
+  private def sortIntoFutureAndPast(input : Future[Seq[Event]]) : Future[(Seq[Event], Seq[Event])] = {
+    input.map{_.reverse.partition(_.endTime.before(new Date))}
+  }
+
+  def events = Action.async {
+        implicit request => {
+          val partitionedEvents : Future[(Seq[Event], Seq[Event])] = sortIntoFutureAndPast(eventDao.allEvents)
+          val futureMainEvent : Future[Option[Event]] = partitionedEvents.map{case (future, past) => future.headOption}
+
+          getResult(futureMainEvent, partitionedEvents)
+        }
+}
 
   def getEvent(id : Long) = Action.async{ implicit request => {
 
     val allEvents = eventDao.allEvents
+    val foundEvents = allEvents.map(_.filter(_.id.get == id))
+    val maybeMainEvent = foundEvents.map(_.headOption)
+    val remainingEvents = allEvents.map(_.filter(_.id.get != id))
 
-    for {
-      requestedEvents <- allEvents.map(_.filter(_.id.get == id))
-      maybePlace <- placeFinder.findPlace(requestedEvents.head.location)
-      remainingEvents <- allEvents.map(_.filter(_.id.get != id))
-    } yield {
-      val (past, future) = remainingEvents.partition(_.endTime.before(new Date))
-      Ok(views.html.events(requestedEvents.head, maybePlace, past, future))
-      }
-    }
+    val partitionedEvents : Future[(Seq[Event], Seq[Event])] = sortIntoFutureAndPast(remainingEvents)
+
+    getResult(maybeMainEvent, partitionedEvents)
+  }
+
   }
 
   //Authenticated extends ActionBuilder - here we're calling ACtionBuilder's apply method.
